@@ -1,0 +1,4 @@
+[v2] GET / x-feature-flag=new-version
+[v2] GET / x-feature-flag=null
+[v2] GET / x-feature-flag=new-version
+[v2] GET / x-feature-flag=null

@@ -1,0 +1,7 @@
+# Petición SIN pasar por un proxy cliente de la malla (kubectl port-forward directo al Service web)
+$ curl -H "X-Feature-Flag: new-version" http://localhost:18081/
+respuesta de: v1
+respuesta de: v1
+respuesta de: v1
+respuesta de: v1
+respuesta de: v1

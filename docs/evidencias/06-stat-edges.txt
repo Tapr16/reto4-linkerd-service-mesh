@@ -1,0 +1,15 @@
+$ linkerd viz stat deploy -n reto4
+NAME      MESHED   SUCCESS      RPS   LATENCY_P50   LATENCY_P95   LATENCY_P99   TCP_CONN
+client       1/1   100.00%   0.3rps           1ms           1ms           1ms          1
+gateway      1/1   100.00%   3.2rps           1ms           1ms           2ms          2
+web-v1       2/2   100.00%   2.4rps           1ms           1ms           1ms         10
+web-v2       1/1   100.00%   2.0rps           1ms           1ms           1ms          4
+
+$ linkerd viz edges deploy -n reto4
+SRC          DST       SRC_NS        DST_NS   SECURED
+prometheus   client    linkerd-viz   reto4    √      
+prometheus   gateway   linkerd-viz   reto4    √      
+prometheus   web-v1    linkerd-viz   reto4    √      
+prometheus   web-v2    linkerd-viz   reto4    √      
+gateway      web-v1    reto4         reto4    √      
+gateway      web-v2    reto4         reto4    √      

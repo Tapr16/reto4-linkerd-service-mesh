@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-v1
+  namespace: reto4
+  labels:
+    app: web
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: web
+        version: v1
+    spec:
+      containers:
+        - name: web
+          image: reto4-app:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi

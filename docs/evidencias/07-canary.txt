@@ -1,0 +1,2 @@
+Canary 90/10 - 200 peticiones sin cabecera: v1=181 v2=19
+Canary - 20 peticiones con X-Feature-Flag: new-version -> v2=20/20

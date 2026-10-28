@@ -1,0 +1,20 @@
+$ linkerd version
+Client version: edge-26.10.1
+Server version: edge-26.10.1
+
+$ linkerd check
+# resumen: verificaciones por sección (salida completa en docs/evidencias/02-check.txt)
+kubernetes-api                        2 verificaciones  √
+kubernetes-version                    1 verificaciones  √
+gateway-api-crd                       1 verificaciones  √
+linkerd-existence                     8 verificaciones  √
+linkerd-config                        8 verificaciones  √
+linkerd-identity                      8 verificaciones  √
+linkerd-webhooks-and-apisvc-tls       6 verificaciones  √
+linkerd-version                       2 verificaciones  √
+control-plane-version                 3 verificaciones  √
+linkerd-control-plane-proxy           3 verificaciones  √
+linkerd-extension-checks              1 verificaciones  √
+linkerd-viz                          14 verificaciones  √
+
+Status check results are √

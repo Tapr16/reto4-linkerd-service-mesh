@@ -1,0 +1,44 @@
+# "web" es el nombre que usan los clientes. Sin HTTPRoute apunta solo a v1
+# (estable), de modo que si se borra la ruta el tráfico vuelve a lo seguro.
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: reto4
+spec:
+  selector:
+    app: web
+    version: v1
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# Backends por versión: los referencia el HTTPRoute de Linkerd.
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-v1
+  namespace: reto4
+spec:
+  selector:
+    app: web
+    version: v1
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-v2
+  namespace: reto4
+spec:
+  selector:
+    app: web
+    version: v2
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

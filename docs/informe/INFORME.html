@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Reto 4 — Enrutamiento inteligente con Service Mesh (Linkerd)</title>
+<style>
+  @page { size: Letter; margin: 2.2cm 2cm; }
+  body { font-family: Calibri, 'Segoe UI', sans-serif; font-size: 11pt; line-height: 1.45; color: #1f2328; }
+  h1 { font-size: 20pt; color: #0b2a5b; margin: 0 0 .3em; }
+  h2 { font-size: 15pt; color: #0b2a5b; border-bottom: 2px solid #0b2a5b; padding-bottom: 3px; margin-top: 1.6em; break-after: avoid; }
+  h3 { font-size: 12.5pt; color: #24518f; margin-top: 1.2em; break-after: avoid; }
+  p, li { text-align: justify; }
+  code { font-family: Consolas, monospace; font-size: 9.5pt; background: #f2f4f7; padding: 0 3px; border-radius: 3px; }
+  pre { font-family: Consolas, monospace; font-size: 8.8pt; overflow-wrap: anywhere; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 4px; padding: 8px 10px; white-space: pre-wrap; break-inside: avoid; }
+  table { border-collapse: collapse; width: 100%; margin: .6em 0 1em; font-size: 10pt; break-inside: avoid; }
+  th, td { border: 1px solid #c9d1d9; padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: #e8eef7; }
+  figure { margin: 1em 0 1.3em; text-align: center; break-inside: avoid; }
+  figure img { max-width: 100%; max-height: 21cm; border: 1px solid #c9d1d9; }
+  figcaption { font-size: 9.5pt; color: #57606a; margin-top: 4px; font-style: italic; }
+  .portada { height: 22cm; display: flex; flex-direction: column; justify-content: center; text-align: center; break-after: page; }
+  .portada h1 { font-size: 26pt; }
+  .portada .sub { font-size: 14pt; color: #24518f; margin-bottom: 2.5em; }
+  .portada table { width: 70%; margin: 0 auto 2em; font-size: 11.5pt; }
+  .ok { color: #1a7f37; font-weight: bold; }
+  .nota { background: #fff8e5; border-left: 4px solid #d4a72c; padding: 6px 10px; margin: .8em 0; break-inside: avoid; }
+  .salto { break-before: page; }
+</style>
+</head>
+<body>
+
+<section class="portada">
+  <h1>Reto 4: Enrutamiento Inteligente con Service Mesh</h1>
+  <div class="sub">Ruteo por cabeceras HTTP con Linkerd sobre Kubernetes</div>
+  <table>
+    <tr><th>Código</th><th>Integrante</th></tr>
+    <tr><td>2221909</td><td>David Esteban Suarez Lozano</td></tr>
+    <tr><td>2221906</td><td>Thomas Alejandro Perez Rojas</td></tr>
+    <tr><td>2221922</td><td>Jesus David Santodomingo Carrascal</td></tr>
+  </table>
+  <div>Principios — Retos Software III<br>Octubre de 2026</div>
+</section>
+
+<h2>1. Contexto y objetivo</h2>
+<p>En una arquitectura de microservicios sobre Kubernetes es difícil controlar hacia dónde va el tráfico entre servicios. Por ejemplo, cuesta enviar a una versión nueva solo las peticiones de ciertos usuarios para hacer pruebas A/B, <i>canaries</i> o <i>feature flags</i>. Un <b>Service Mesh</b> resuelve este problema con una capa de infraestructura: un proxy junto a cada pod intercepta el tráfico y aplica reglas de red. La aplicación no tiene que cambiar su código.</p>
+<p><b>Objetivo del reto:</b> configurar un Service Mesh (en nuestro caso <b>Linkerd</b>) para que las peticiones con una cabecera HTTP concreta lleguen a una versión específica de la aplicación (v2). El resto debe seguir llegando a la versión estable (v1). Además hay que comprobar el comportamiento con <code>curl</code>/Postman y con las herramientas de observabilidad de la malla.</p>
+
+<table>
+  <tr><th>Petición</th><th>Versión que debe responder</th></tr>
+  <tr><td><code>X-Feature-Flag: new-version</code></td><td><b>v2</b> (nueva)</td></tr>
+  <tr><td><code>User-Agent: experimental</code></td><td><b>v2</b> (nueva)</td></tr>
+  <tr><td>Sin cabecera, o con cualquier otro valor</td><td><b>v1</b> (estable)</td></tr>
+</table>
+
+<h2>2. Marco conceptual</h2>
+<h3>2.1 Service Mesh y Linkerd</h3>
+<p>Linkerd es un Service Mesh de la CNCF. Inyecta en cada pod un <i>sidecar</i> llamado <code>linkerd-proxy</code>, un microproxy escrito en Rust. Ese proxy captura el tráfico de entrada y de salida del pod con reglas de <code>iptables</code> que instala el contenedor <code>linkerd-init</code>. Así el proxy puede aplicar políticas, cifrar con <b>mTLS</b> automáticamente y medir tasa de éxito, RPS y latencia sin modificar la aplicación. En la versión utilizada (edge-26.10.1) el proxy se inyecta como <i>sidecar nativo</i> de Kubernetes, es decir, como un <code>initContainer</code> con <code>restartPolicy: Always</code>.</p>
+
+<h3>2.2 Por qué usamos <code>HTTPRoute</code> en lugar de <code>TrafficSplit</code> + <code>ServiceProfile</code></h3>
+<p>El enunciado menciona <code>TrafficSplit</code> (de la especificación SMI) y <code>ServiceProfile</code>. En las versiones actuales de Linkerd, SMI y <code>TrafficSplit</code> están <b>deprecados</b>. El mecanismo oficial para ruteo dinámico es el recurso <code>HTTPRoute</code> de <b>Gateway API</b>, el estándar de Kubernetes, en su modalidad GAMMA (malla de servicios). En esa modalidad el <code>parentRef</code> de la ruta es un <code>Service</code> y no un Gateway.</p>
+<p><code>TrafficSplit</code> solo permitía repartir por pesos. <code>HTTPRoute</code> permite además condiciones <code>matches</code> por cabecera, ruta, método o parámetro, que es justo lo que pide el reto. Al ser un estándar, la misma definición sirve con poco o ningún cambio en otras mallas, como Istio.</p>
+
+<h3>2.3 Dónde se toma la decisión de ruteo</h3>
+<p>En Linkerd las reglas de ruteo se aplican en el proxy <b>del cliente</b>, es decir, el proxy del pod que <i>envía</i> la petición. Por eso quien llama al servicio tiene que estar dentro de la malla. Lo comprobamos de forma experimental en la sección 8.2.</p>
+
+<h2>3. Arquitectura de la solución</h2>
+<pre>
+ PC (curl / Postman)
+        │  http://localhost:8080
+        ▼
+ kind: puerto 8080 del host → NodePort 30080
+        ▼
+ ┌─ namespace reto4 (linkerd.io/inject: enabled) ─────────────────────┐
+ │                                                                    │
+ │  gateway (nginx + linkerd-proxy)                                   │
+ │     │  pide Service "web"                                          │
+ │     ▼                                                              │
+ │  HTTPRoute web-por-cabecera  (se evalúa en el proxy del gateway)   │
+ │     ├─ x-feature-flag=new-version ó user-agent=experimental        │
+ │     │     ──► Service web-v2 ──► pod web-v2 (1 réplica)            │
+ │     └─ cualquier otra petición                                     │
+ │           ──► Service web-v1 ──► pods web-v1 (2 réplicas)          │
+ │                                                                    │
+ │  client (curl + linkerd-proxy): pruebas desde dentro del clúster   │
+ └────────────────────────────────────────────────────────────────────┘
+</pre>
+<ul>
+  <li><b>web-v1 / web-v2:</b> la misma aplicación Node.js construida dos veces con <code>APP_VERSION=v1|v2</code>. Cada respuesta es un JSON que indica la versión, el pod que atendió y las cabeceras recibidas, y lleva la cabecera <code>X-App-Version</code>.</li>
+  <li><b>Service <code>web</code>:</b> es el nombre que usan los clientes. Su selector apunta <b>solo a v1</b>. Así, si se borra la ruta, el tráfico vuelve a la versión estable (comportamiento seguro por defecto).</li>
+  <li><b>Services <code>web-v1</code> y <code>web-v2</code>:</b> son los <i>backends</i> a los que apunta el <code>HTTPRoute</code>.</li>
+  <li><b>gateway:</b> un nginx dentro de la malla que reenvía todo a <code>web</code>. Gracias a él, las peticiones que salen del PC pasan por un proxy cliente de Linkerd y se les aplica la ruta.</li>
+  <li><b>client:</b> un pod de la malla con <code>curl</code> para probar desde dentro del clúster.</li>
+</ul>
+
+<h2>4. Entorno y herramientas</h2>
+<table>
+  <tr><th>Componente</th><th>Versión</th><th>Uso</th></tr>
+  <tr><td>Docker Desktop (Windows 11)</td><td>29.9.1</td><td>Motor de contenedores</td></tr>
+  <tr><td>kind</td><td>0.33.0 (nodo <code>kindest/node:v1.37.0</code>)</td><td>Clúster Kubernetes local</td></tr>
+  <tr><td>kubectl</td><td>1.36.1 (servidor 1.37.0)</td><td>CLI de Kubernetes</td></tr>
+  <tr><td>Linkerd (CLI y control plane)</td><td>edge-26.10.1</td><td>Service Mesh</td></tr>
+  <tr><td>Linkerd viz</td><td>edge-26.10.1</td><td>Métricas, tap y dashboard (incluye Prometheus)</td></tr>
+  <tr><td>Gateway API CRDs</td><td>v1.2.1 (standard)</td><td>Recurso <code>HTTPRoute</code></td></tr>
+  <tr><td>Node.js / nginx / curl</td><td>22-alpine / 1.27-alpine / 8.11.1</td><td>Aplicación, gateway y cliente</td></tr>
+</table>
+
+<h2>5. Implementación paso a paso</h2>
+<p>Todo el procedimiento está automatizado en scripts bash, ejecutados desde Git Bash en la raíz del proyecto:</p>
+<pre>scripts/01-crear-cluster.sh        # clúster kind "reto4" con el puerto 8080 publicado
+scripts/02-instalar-linkerd.sh     # Gateway API CRDs + linkerd install + viz
+scripts/03-desplegar-app.sh        # build v1/v2, kind load, kubectl apply k8s/
+scripts/04-aplicar-rutas.sh header # HTTPRoute por cabecera
+scripts/05-probar.sh 20            # 20 peticiones por caso y conteo por versión
+scripts/06-observabilidad.sh       # stat, edges y dashboard</pre>
+
+<h3>5.1 Creación del clúster</h3>
+<p>Se creó un clúster kind de un nodo. La configuración publica el NodePort 30080 en el puerto 8080 del PC, para que Postman/curl lleguen al gateway sin necesidad de <code>port-forward</code>.</p>
+<figure><img src="../capturas/01-cluster.png"><figcaption>Figura 1. Creación del clúster kind <code>reto4</code>.</figcaption></figure>
+
+<h3>5.2 Instalación de Linkerd</h3>
+<p>Primero se instalaron las CRDs de Gateway API (necesarias para <code>HTTPRoute</code>), después las CRDs y el <i>control plane</i> de Linkerd (<code>linkerd install --crds</code> y <code>linkerd install</code>), y por último la extensión <code>viz</code>. Todas las verificaciones de <code>linkerd check</code> salieron correctas: certificados de identidad, webhooks, versión del plano de control y plano de datos.</p>
+<figure><img src="../capturas/02-linkerd-check.png"><figcaption>Figura 2. <code>linkerd version</code> y resumen de <code>linkerd check</code>: 57 verificaciones, todas en verde.</figcaption></figure>
+
+<h3>5.3 Despliegue de la aplicación en la malla</h3>
+<p>El namespace <code>reto4</code> tiene la anotación <code>linkerd.io/inject: enabled</code>, así que el <i>proxy injector</i> de Linkerd agrega el sidecar a todo pod que se crea en él. La Figura 3 muestra que los cinco pods tienen <code>linkerd-init</code> y <code>linkerd-proxy</code>, y que las imágenes <code>reto4-app:v1</code> y <code>reto4-app:v2</code> corren en Deployments separados.</p>
+<figure><img src="../capturas/03-pods.png"><figcaption>Figura 3. Workloads del namespace <code>reto4</code>, todos con el sidecar de Linkerd.</figcaption></figure>
+
+<h3>5.4 Regla de enrutamiento por cabecera (<code>HTTPRoute</code>)</h3>
+<p>La ruta tiene dos reglas. Linkerd aplica la <b>primera</b> regla cuya condición se cumple:</p>
+<ol>
+  <li>Una lista de <code>matches</code> con dos alternativas que se combinan con <b>OR</b>: la cabecera <code>x-feature-flag</code> con valor exacto <code>new-version</code>, o la cabecera <code>user-agent</code> con valor <code>experimental</code>. Si se cumple alguna, el tráfico va a <code>web-v2</code>.</li>
+  <li>Una regla sin <code>matches</code> que funciona como valor por defecto y envía todo lo demás a <code>web-v1</code>.</li>
+</ol>
+<p>Según Gateway API, los nombres de cabecera no distinguen mayúsculas de minúsculas, y el valor se compara de forma exacta. El controlador <code>linkerd.io/policy-controller</code> aceptó la ruta: tiene las condiciones <code>Accepted=True</code> y <code>ResolvedRefs=True</code>.</p>
+<figure><img src="../capturas/04-httproute.png"><figcaption>Figura 4. Definición del <code>HTTPRoute</code> y su estado tras aplicarlo.</figcaption></figure>
+
+<h2 class="salto">6. Pruebas y resultados</h2>
+<h3>6.1 Antes de aplicar la ruta (línea base)</h3>
+<p>Primero se ejecutaron las pruebas <b>sin</b> <code>HTTPRoute</code>. Las 100 peticiones (20 por caso) llegaron a v1, incluso las que llevaban la cabecera. Esto confirma que la cabecera por sí sola no cambia nada: el desvío lo hace la malla.</p>
+<figure><img src="../capturas/05-antes.png"><figcaption>Figura 5. Sin HTTPRoute, todo el tráfico va a v1.</figcaption></figure>
+
+<h3>6.2 Después de aplicar la ruta</h3>
+<figure><img src="../capturas/06-despues.png"><figcaption>Figura 6. Con el HTTPRoute aplicado, la cabecera decide la versión, tanto desde el PC como desde el pod cliente.</figcaption></figure>
+
+<table>
+  <tr><th>Caso (20 peticiones c/u)</th><th>Esperado</th><th>v1</th><th>v2</th><th>Resultado</th></tr>
+  <tr><td>Sin cabecera</td><td>v1</td><td>20</td><td>0</td><td class="ok">Correcto</td></tr>
+  <tr><td><code>X-Feature-Flag: new-version</code></td><td>v2</td><td>0</td><td>20</td><td class="ok">Correcto</td></tr>
+  <tr><td><code>X-Feature-Flag: otro-valor</code></td><td>v1</td><td>20</td><td>0</td><td class="ok">Correcto</td></tr>
+  <tr><td><code>User-Agent: experimental</code></td><td>v2</td><td>0</td><td>20</td><td class="ok">Correcto</td></tr>
+  <tr><td><code>x-feature-flag: new-version</code> (nombre en minúsculas)</td><td>v2</td><td>0</td><td>20</td><td class="ok">Correcto</td></tr>
+</table>
+<p>Las 100 peticiones llegaron a la versión esperada, sin errores. Dentro del clúster, el pod <code>client</code> obtuvo el mismo resultado: sin cabecera respondió <code>web-v1-…</code> y con <code>X-Feature-Flag: new-version</code> respondió <code>web-v2-5bcff59747-gnzbz</code>.</p>
+
+<h3>6.3 Peticiones manuales con <code>curl -i</code></h3>
+<p>La cabecera de respuesta <code>x-app-version</code> y el campo <code>pod</code> del JSON confirman qué versión atendió cada petición. Estas mismas peticiones están en la colección de Postman <code>docs/reto4.postman_collection.json</code>.</p>
+<figure><img src="../capturas/07-curl-manual.png"><figcaption>Figura 7. Peticiones manuales: sin cabecera (v1), con <code>X-Feature-Flag</code> (v2) y con <code>User-Agent: experimental</code> (v2).</figcaption></figure>
+
+<h2 class="salto">7. Observabilidad con Linkerd viz</h2>
+<p>Para esta sección se generó tráfico continuo mezclado: por cada ciclo, dos peticiones sin cabecera, una con <code>X-Feature-Flag</code> y una con <code>User-Agent: experimental</code>. Con esa mezcla se espera un reparto 50/50 entre v1 y v2.</p>
+
+<h3>7.1 Métricas, mTLS y tráfico en vivo</h3>
+<p><code>linkerd viz stat</code> muestra la tasa de éxito (100 %), los RPS y las latencias p50/p95/p99 de cada workload. <code>linkerd viz edges</code> muestra las conexiones entre workloads: <code>gateway → web-v1</code> y <code>gateway → web-v2</code> están marcadas como <b>SECURED (√)</b>, es decir, el tráfico va cifrado con <b>mTLS automático</b> sin haber configurado certificados en la aplicación.</p>
+<figure><img src="../capturas/08-stat-edges.png"><figcaption>Figura 8. <code>linkerd viz stat</code> y <code>linkerd viz edges</code> (mTLS).</figcaption></figure>
+
+<p><code>linkerd viz stat-outbound</code> muestra las métricas <b>desde el punto de vista del cliente</b> (gateway). El tráfico hacia <code>web:80</code> pasa por la ruta <code>web-por-cabecera</code> (tipo HTTPRoute) y se reparte entre los backends <code>web-v1:80</code> y <code>web-v2:80</code> con 1,55 RPS cada uno, que es el 50/50 esperado. En <code>linkerd viz tap</code> sobre <code>web-v2</code>, las peticiones llegan con <code>:authority=web.reto4.svc.cluster.local</code>: el cliente pidió el servicio <code>web</code> y la malla lo envió a v2. Todas llevan <code>tls=true</code>.</p>
+<figure><img src="../capturas/09-outbound-tap.png"><figcaption>Figura 9. Métricas por ruta y backend (<code>stat-outbound</code>) y tráfico en vivo hacia v2 (<code>tap</code>).</figcaption></figure>
+<figure><img src="../capturas/10-logs-v2.png"><figcaption>Figura 10. Logs de <code>web-v2</code>: llegan peticiones con <code>x-feature-flag=new-version</code> y otras con <code>x-feature-flag=null</code>; estas últimas son las que traen <code>User-Agent: experimental</code>.</figcaption></figure>
+
+<h3>7.2 Dashboard web</h3>
+<figure><img src="../capturas/13-dashboard-namespace.png"><figcaption>Figura 11. Dashboard de Linkerd viz para el namespace <code>reto4</code>: grafo de tráfico y métricas por deployment.</figcaption></figure>
+<figure><img src="../capturas/14-dashboard-gateway.png"><figcaption>Figura 12. Topología del <code>gateway</code>: el tráfico sale hacia <code>web-v1</code> y <code>web-v2</code> según la regla del HTTPRoute.</figcaption></figure>
+
+<h2 class="salto">8. Experimentos adicionales</h2>
+<h3>8.1 Canary por pesos combinado con la cabecera (opcional)</h3>
+<p>Se aplicó la variante <code>httproute-canary.yaml</code>. La regla por cabecera se mantiene, y el tráfico <b>sin</b> cabecera se reparte 90/10 entre v1 y v2. De 200 peticiones sin cabecera, 181 fueron a v1 y 19 a v2 (90,5 % / 9,5 %). Las 20 peticiones con cabecera fueron todas a v2. Así se combina un <i>feature flag</i> para probadores internos con un canary gradual para el resto de usuarios. Al terminar se restauró la ruta del reto.</p>
+<figure><img src="../capturas/11-canary.png"><figcaption>Figura 13. Canary 90/10 con regla por cabecera.</figcaption></figure>
+
+<h3>8.2 Tráfico que no pasa por un proxy cliente de la malla</h3>
+<p>Para comprobar que el ruteo ocurre en el proxy del cliente, se hizo un <code>kubectl port-forward</code> directo al Service <code>web</code>. Así la petición no sale por ningún <code>linkerd-proxy</code> cliente. Con la cabecera <code>X-Feature-Flag: new-version</code>, las 5 respuestas vinieron de <b>v1</b>. Conclusión: en Linkerd, para que el ruteo funcione, quien llama debe estar dentro de la malla. Por eso la solución usa un gateway mallado como punto de entrada.</p>
+<figure><img src="../capturas/12-fuera-de-malla.png"><figcaption>Figura 14. Fuera de la malla la regla no se aplica.</figcaption></figure>
+
+<h2>9. Service Mesh vs Ingress vs balanceador tradicional</h2>
+<table>
+  <tr><th>Aspecto</th><th>Balanceador L4</th><th>Ingress (L7 en el borde)</th><th>Service Mesh (Linkerd)</th></tr>
+  <tr><td>Dónde decide</td><td>Solo en la entrada</td><td>Solo en la entrada (norte-sur)</td><td>En <b>cada</b> llamada, también entre servicios (este-oeste)</td></tr>
+  <tr><td>Ruteo por cabeceras</td><td>No (no interpreta HTTP)</td><td>Sí, solo para tráfico externo</td><td>Sí, para cualquier llamada entre servicios</td></tr>
+  <tr><td>Cifrado entre servicios</td><td>No</td><td>No (el TLS termina en el borde)</td><td>mTLS automático con identidad por workload</td></tr>
+  <tr><td>Métricas</td><td>Mínimas</td><td>Solo del borde</td><td>Tasa de éxito, RPS y latencia por workload y ruta, sin instrumentar código</td></tr>
+  <tr><td>Reintentos y timeouts</td><td>No</td><td>Limitados</td><td>Declarativos por ruta</td></tr>
+  <tr><td>Costo</td><td>Bajo</td><td>Bajo</td><td>Un sidecar por pod (CPU/RAM extra) y más componentes que operar</td></tr>
+</table>
+<p>Un Ingress basta para publicar una aplicación hacia Internet. Pero si el servicio A llama al servicio B, el Ingress no interviene en esa llamada interna. El Service Mesh sí: permite pruebas A/B, canaries y feature flags <b>a nivel de servicio interno</b>, cifra todo el tráfico este-oeste y da observabilidad uniforme. Su costo es un proxy por pod y la complejidad de operar el plano de control. Linkerd reduce ese costo frente a Istio porque su proxy es muy ligero; en nuestras pruebas la latencia p99 fue de 1–2 ms.</p>
+
+<h2>10. Problemas encontrados y soluciones</h2>
+<table>
+  <tr><th>Problema</th><th>Causa</th><th>Solución</th></tr>
+  <tr><td><code>docker</code>, <code>kubectl</code> y <code>kind</code> no se encontraban en Git Bash, aunque estaban instalados.</td><td>Docker Desktop y winget instalan los binarios en carpetas que no estaban en el PATH de esa terminal.</td><td><code>scripts/env.sh</code> agrega esas carpetas y <code>bin/</code> (CLI de Linkerd) al PATH de todos los scripts.</td></tr>
+  <tr><td>El listado de contenedores no mostraba <code>linkerd-proxy</code>.</td><td>Linkerd edge-26 inyecta el proxy como <i>sidecar nativo</i> (<code>initContainer</code>).</td><td>Se consulta también <code>.spec.initContainers</code> para evidenciar la inyección.</td></tr>
+  <tr><td>Una petición directa al Service con la cabecera seguía yendo a v1.</td><td>Linkerd aplica <code>HTTPRoute</code> en el proxy del cliente.</td><td>Punto de entrada mallado (gateway nginx) y pod cliente mallado.</td></tr>
+  <tr><td>El enunciado menciona <code>TrafficSplit</code>/<code>ServiceProfile</code>.</td><td>SMI está deprecado en Linkerd moderno.</td><td>Se usa <code>HTTPRoute</code> de Gateway API (GAMMA), que además permite <code>matches</code> por cabecera.</td></tr>
+</table>
+
+<h2>11. Conclusiones</h2>
+<ul>
+  <li>Se implementó con Linkerd un ruteo por cabeceras HTTP <b>sin modificar el código</b> de la aplicación. La cabecera <code>X-Feature-Flag: new-version</code> o <code>User-Agent: experimental</code> lleva el tráfico a v2, y todo lo demás va a v1. El 100 % de las peticiones de prueba llegó a la versión esperada.</li>
+  <li>El diseño es seguro por defecto: si se elimina el <code>HTTPRoute</code>, el Service <code>web</code> solo apunta a v1.</li>
+  <li>La observabilidad de Linkerd viz confirma el comportamiento sin instrumentar la app: métricas por ruta y por backend, tráfico en vivo y mTLS en todas las conexiones.</li>
+  <li>La misma ruta, con pesos, permite un canary gradual combinado con el feature flag. Así se pueden lanzar funcionalidades en producción con riesgo controlado.</li>
+  <li>Aprendizaje clave: en Linkerd el ruteo ocurre en el proxy <b>cliente</b>, así que quien llama debe estar en la malla.</li>
+</ul>
+
+<h2>12. Cómo reproducir</h2>
+<pre>Estructura del repositorio
+  app/              server.js + Dockerfile
+  k8s/              namespace, deployments v1/v2, services, client, gateway
+  linkerd/          httproute-header.yaml, httproute-canary.yaml
+  scripts/          00..06 + 99-limpiar.sh
+  kind-config.yaml  clúster kind (8080 → NodePort 30080)
+  docs/             informe, capturas, evidencias (salidas en texto), colección Postman
+  tools/            capturar.js (genera las capturas PNG)
+
+Pasos
+  scripts/00-verificar-herramientas.sh
+  scripts/01-crear-cluster.sh
+  scripts/02-instalar-linkerd.sh
+  scripts/03-desplegar-app.sh
+  scripts/05-probar.sh            # línea base
+  scripts/04-aplicar-rutas.sh header
+  scripts/05-probar.sh            # con la ruta
+  scripts/06-observabilidad.sh
+  scripts/99-limpiar.sh           # borra el clúster</pre>
+
+<h2>13. Referencias</h2>
+<ol>
+  <li>Linkerd Documentation — Traffic Splitting / Dynamic Request Routing. https://linkerd.io/2/tasks/configuring-dynamic-request-routing/</li>
+  <li>Linkerd Documentation — HTTPRoute reference. https://linkerd.io/2/reference/httproute/</li>
+  <li>Kubernetes Gateway API — GAMMA (Service Mesh). https://gateway-api.sigs.k8s.io/mesh/</li>
+  <li>Istio Documentation — Traffic Management. https://istio.io/latest/docs/concepts/traffic-management/</li>
+  <li>Service Mesh Interface (SMI) Specification. https://github.com/servicemeshinterface/smi-spec</li>
+</ol>
+
+</body>
+</html>

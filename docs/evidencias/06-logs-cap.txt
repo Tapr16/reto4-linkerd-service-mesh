@@ -1,0 +1,5 @@
+$ kubectl -n reto4 logs deploy/web-v2 -c web --tail=4
+[v2] GET / x-feature-flag=new-version
+[v2] GET / x-feature-flag=null
+[v2] GET / x-feature-flag=new-version
+[v2] GET / x-feature-flag=null

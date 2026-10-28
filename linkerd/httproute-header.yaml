@@ -1,0 +1,31 @@
+# Enrutamiento por cabeceras HTTP con Linkerd (Gateway API / GAMMA).
+# El parentRef es el Service "web": Linkerd intercepta el tráfico dirigido a él
+# en el proxy del cliente y decide el backend según estas reglas.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: web-por-cabecera
+  namespace: reto4
+spec:
+  parentRefs:
+    - name: web
+      kind: Service
+      group: core
+      port: 80
+  rules:
+    # Regla 1: si llega CUALQUIERA de estas cabeceras (OR) -> v2.
+    # Los nombres de cabecera no distinguen mayúsculas; el valor es exacto.
+    - matches:
+        - headers:
+            - name: x-feature-flag
+              value: new-version
+        - headers:
+            - name: user-agent
+              value: experimental
+      backendRefs:
+        - name: web-v2
+          port: 80
+    # Regla 2 (por defecto): todo lo demás -> v1 estable.
+    - backendRefs:
+        - name: web-v1
+          port: 80

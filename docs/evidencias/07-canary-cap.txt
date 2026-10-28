@@ -1,0 +1,3 @@
+$ scripts/04-aplicar-rutas.sh canary   # 90% v1 / 10% v2 para trafico sin cabecera
+Canary 90/10 - 200 peticiones sin cabecera: v1=181 v2=19
+Canary - 20 peticiones con X-Feature-Flag: new-version -> v2=20/20

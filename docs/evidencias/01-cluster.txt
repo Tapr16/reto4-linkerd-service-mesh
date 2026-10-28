@@ -1,0 +1,26 @@
+No kind clusters found.
+
+[1;36m==> Creando clúster kind 'reto4'[0m
+Creating cluster "reto4" ...
+ • Ensuring node image (kindest/node:v1.37.0) 🖼️  ...
+ ✓ Ensuring node image (kindest/node:v1.37.0) 🖼️
+ • Preparing nodes 📦   ...
+ ✓ Preparing nodes 📦 
+ • Writing configuration 📜  ...
+ ✓ Writing configuration 📜
+ • Starting control-plane 🕹️  ...
+ ✓ Starting control-plane 🕹️
+ • Installing CNI 🔌  ...
+ ✓ Installing CNI 🔌
+ • Installing StorageClass 💾  ...
+ ✓ Installing StorageClass 💾
+Set kubectl context to "kind-reto4"
+You can now use your cluster with:
+
+kubectl cluster-info --context kind-reto4
+
+Have a nice day! 👋
+Kubernetes control plane is running at https://127.0.0.1:56902
+CoreDNS is running at https://127.0.0.1:56902/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.

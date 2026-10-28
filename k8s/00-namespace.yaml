@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: reto4
+  annotations:
+    # Todo pod creado en este namespace recibe el sidecar linkerd-proxy.
+    linkerd.io/inject: enabled

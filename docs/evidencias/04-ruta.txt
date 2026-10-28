@@ -1,0 +1,21 @@
+httproute.gateway.networking.k8s.io/web-por-cabecera created
+status:
+  parents:
+  - conditions:
+    - lastTransitionTime: "2026-10-28T20:48:38Z"
+      message: ""
+      reason: Accepted
+      status: "True"
+      type: Accepted
+    - lastTransitionTime: "2026-10-28T20:48:38Z"
+      message: ""
+      reason: ResolvedRefs
+      status: "True"
+      type: ResolvedRefs
+    controllerName: linkerd.io/policy-controller
+    parentRef:
+      group: core
+      kind: Service
+      name: web
+      namespace: reto4
+      port: 80

@@ -1,0 +1,49 @@
+$ cat linkerd/httproute-header.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: web-por-cabecera
+  namespace: reto4
+spec:
+  parentRefs:
+    - name: web
+      kind: Service
+      group: core
+      port: 80
+  rules:
+    - matches:
+        - headers:
+            - name: x-feature-flag
+              value: new-version
+        - headers:
+            - name: user-agent
+              value: experimental
+      backendRefs:
+        - name: web-v2
+          port: 80
+    - backendRefs:
+        - name: web-v1
+          port: 80
+
+$ scripts/04-aplicar-rutas.sh header
+httproute.gateway.networking.k8s.io/web-por-cabecera created
+status:
+  parents:
+  - conditions:
+    - lastTransitionTime: "2026-10-28T20:48:38Z"
+      message: ""
+      reason: Accepted
+      status: "True"
+      type: Accepted
+    - lastTransitionTime: "2026-10-28T20:48:38Z"
+      message: ""
+      reason: ResolvedRefs
+      status: "True"
+      type: ResolvedRefs
+    controllerName: linkerd.io/policy-controller
+    parentRef:
+      group: core
+      kind: Service
+      name: web
+      namespace: reto4
+      port: 80

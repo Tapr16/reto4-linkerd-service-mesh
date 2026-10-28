@@ -1,0 +1,11 @@
+# Clúster local de un nodo. El puerto 8080 del PC llega al NodePort 30080
+# del gateway (nginx mallado), así Postman/curl desde Windows pasan por Linkerd.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: reto4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 8080
+        protocol: TCP

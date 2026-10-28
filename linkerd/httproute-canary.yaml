@@ -1,0 +1,31 @@
+# OPCIONAL: misma regla por cabecera, pero el tráfico sin cabecera se reparte
+# 90/10 entre v1 y v2 (canary por pesos). Sustituye a httproute-header.yaml.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: web-por-cabecera
+  namespace: reto4
+spec:
+  parentRefs:
+    - name: web
+      kind: Service
+      group: core
+      port: 80
+  rules:
+    - matches:
+        - headers:
+            - name: x-feature-flag
+              value: new-version
+        - headers:
+            - name: user-agent
+              value: experimental
+      backendRefs:
+        - name: web-v2
+          port: 80
+    - backendRefs:
+        - name: web-v1
+          port: 80
+          weight: 90
+        - name: web-v2
+          port: 80
+          weight: 10

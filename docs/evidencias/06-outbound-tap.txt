@@ -1,0 +1,13 @@
+$ linkerd viz stat-outbound deploy/gateway -n reto4
+NAME     SERVICE  ROUTE             TYPE       BACKEND    SUCCESS   RPS  LATENCY_P50  LATENCY_P95  LATENCY_P99  TIMEOUTS  RETRIES  
+gateway  web:80   web-por-cabecera  HTTPRoute             100.00%  3.12         25ms         47ms         50ms     0.00%    0.00%  
+                  ├─────────────────────────►  web-v1:80  100.00%  1.55         12ms         24ms         25ms     0.00%           
+                  └─────────────────────────►  web-v2:80  100.00%  1.55         12ms         24ms         25ms     0.00%           
+
+$ linkerd viz tap deploy/web-v2 -n reto4   (extracto: solo peticiones de la app)
+req id=3:0 proxy=in  src=10.244.0.17:45764 dst=10.244.0.14:8080 tls=true :method=GET :authority=web.reto4.svc.cluster.local :path=/
+rsp id=3:0 proxy=in  src=10.244.0.17:45764 dst=10.244.0.14:8080 tls=true :status=200 latency=469µs
+req id=3:1 proxy=in  src=10.244.0.17:45764 dst=10.244.0.14:8080 tls=true :method=GET :authority=web.reto4.svc.cluster.local :path=/
+rsp id=3:1 proxy=in  src=10.244.0.17:45764 dst=10.244.0.14:8080 tls=true :status=200 latency=492µs
+req id=3:2 proxy=in  src=10.244.0.17:45764 dst=10.244.0.14:8080 tls=true :method=GET :authority=web.reto4.svc.cluster.local :path=/
+rsp id=3:2 proxy=in  src=10.244.0.17:45764 dst=10.244.0.14:8080 tls=true :status=200 latency=796µs

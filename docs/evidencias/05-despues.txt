@@ -1,0 +1,29 @@
+
+[1;36m==> Desde el PC (localhost:8080 -> gateway mallado -> web), 20 peticiones por caso[0m
+Sin cabecera                                  v1=20  v2=0   error=0
+X-Feature-Flag: new-version                   v1=0   v2=20  error=0
+X-Feature-Flag: otro-valor                    v1=20  v2=0   error=0
+User-Agent: experimental                      v1=0   v2=20  error=0
+x-feature-flag (en minusculas)                v1=0   v2=20  error=0
+
+[1;36m==> Desde el pod cliente mallado (dentro del clúster)[0m
+{
+  "version": "v1",
+  "mensaje": "Version estable",
+  "pod": "web-v1-64646568bf-hh7kn",
+  "path": "/",
+  "cabeceras": {
+    "x-feature-flag": null,
+    "user-agent": "curl/8.11.1"
+  }
+}
+{
+  "version": "v2",
+  "mensaje": "Nueva version (feature flag activo)",
+  "pod": "web-v2-5bcff59747-gnzbz",
+  "path": "/",
+  "cabeceras": {
+    "x-feature-flag": "new-version",
+    "user-agent": "curl/8.11.1"
+  }
+}

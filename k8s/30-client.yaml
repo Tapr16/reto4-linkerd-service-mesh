@@ -1,0 +1,22 @@
+# Pod cliente mallado para lanzar curl desde dentro del clúster.
+# En Linkerd las reglas de ruteo se aplican en el proxy del CLIENTE,
+# por eso quien envía la petición tiene que estar en la malla.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client
+  namespace: reto4
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: client
+  template:
+    metadata:
+      labels:
+        app: client
+    spec:
+      containers:
+        - name: curl
+          image: curlimages/curl:8.11.1
+          command: ["sleep", "infinity"]

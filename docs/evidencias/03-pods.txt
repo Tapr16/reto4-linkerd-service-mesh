@@ -1,0 +1,17 @@
+POD                        APP     SIDECAR(init)                ESTADO
+client-5d4dc5766c-nb4sm    curl    linkerd-init,linkerd-proxy   Running
+gateway-778975d4fd-hj7rl   nginx   linkerd-init,linkerd-proxy   Running
+web-v1-64646568bf-hh7kn    web     linkerd-init,linkerd-proxy   Running
+web-v1-64646568bf-wqkmc    web     linkerd-init,linkerd-proxy   Running
+web-v2-5bcff59747-gnzbz    web     linkerd-init,linkerd-proxy   Running
+NAME                      READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS   IMAGES                   SELECTOR
+deployment.apps/client    1/1     1            1           28s   curl         curlimages/curl:8.11.1   app=client
+deployment.apps/gateway   1/1     1            1           28s   nginx        nginx:1.27-alpine        app=gateway
+deployment.apps/web-v1    2/2     2            2           28s   web          reto4-app:v1             app=web,version=v1
+deployment.apps/web-v2    1/1     1            1           28s   web          reto4-app:v2             app=web,version=v2
+
+NAME              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE   SELECTOR
+service/gateway   NodePort    10.96.148.133   <none>        80:30080/TCP   28s   app=gateway
+service/web       ClusterIP   10.96.152.168   <none>        80/TCP         28s   app=web,version=v1
+service/web-v1    ClusterIP   10.96.56.185    <none>        80/TCP         28s   app=web,version=v1
+service/web-v2    ClusterIP   10.96.198.171   <none>        80/TCP         28s   app=web,version=v2

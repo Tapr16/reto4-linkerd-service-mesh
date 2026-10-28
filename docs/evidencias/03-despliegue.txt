@@ -1,0 +1,224 @@
+
+[1;36m==> Construyendo imágenes v1 y v2[0m
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon  4.096kB
+Step 1/8 : FROM node:22-alpine
+22-alpine: Pulling from library/node
+7b229517ed22: Pulling fs layer
+304511616d6a: Pulling fs layer
+8776aa3d2ba7: Pulling fs layer
+7246d4c6a55d: Pulling fs layer
+304511616d6a: Download complete
+7246d4c6a55d: Download complete
+7b229517ed22: Download complete
+9cb01b8fd902: Download complete
+8597ec7f632e: Download complete
+7b229517ed22: Pull complete
+8776aa3d2ba7: Download complete
+7246d4c6a55d: Pull complete
+8776aa3d2ba7: Pull complete
+304511616d6a: Pull complete
+Digest: sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914
+Status: Downloaded newer image for node:22-alpine
+ ---> fe4f6d74e203
+Step 2/8 : ARG APP_VERSION=v1
+ ---> Running in 079acc08f978
+ ---> Removed intermediate container 079acc08f978
+ ---> 9a2a45574e17
+Step 3/8 : ENV APP_VERSION=${APP_VERSION}     PORT=8080
+ ---> Running in 98ce9aa54a22
+ ---> Removed intermediate container 98ce9aa54a22
+ ---> ac0ebbf49d14
+Step 4/8 : WORKDIR /app
+ ---> Running in 505670f03eea
+ ---> Removed intermediate container 505670f03eea
+ ---> fe7a06eb3312
+Step 5/8 : COPY server.js .
+ ---> fde69fc43b70
+Step 6/8 : USER node
+ ---> Running in 5a8e4d60bc45
+ ---> Removed intermediate container 5a8e4d60bc45
+ ---> d0ca74ba74cf
+Step 7/8 : EXPOSE 8080
+ ---> Running in 83d4af2d7d61
+ ---> Removed intermediate container 83d4af2d7d61
+ ---> ef372cc576f5
+Step 8/8 : CMD ["node", "server.js"]
+ ---> Running in bee9693702b8
+ ---> Removed intermediate container bee9693702b8
+ ---> ddbc6e6296fc
+Successfully built ddbc6e6296fc
+Successfully tagged reto4-app:v1
+Image: "reto4-app:v1" with ID "sha256:ddbc6e6296fc35bac3d460a12222a559b1b510c787320aca3dfe5d6cdeff1430" not yet present on node "reto4-control-plane", loading...
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon  4.096kB
+Step 1/8 : FROM node:22-alpine
+ ---> fe4f6d74e203
+Step 2/8 : ARG APP_VERSION=v1
+ ---> Using cache
+ ---> 9a2a45574e17
+Step 3/8 : ENV APP_VERSION=${APP_VERSION}     PORT=8080
+ ---> Running in b8688f17c63e
+ ---> Removed intermediate container b8688f17c63e
+ ---> 8f8a21abda8c
+Step 4/8 : WORKDIR /app
+ ---> Running in e37b63c47ea7
+ ---> Removed intermediate container e37b63c47ea7
+ ---> 7ce2bbd8cd90
+Step 5/8 : COPY server.js .
+ ---> 5185df2b4853
+Step 6/8 : USER node
+ ---> Running in dd720fec2ef0
+ ---> Removed intermediate container dd720fec2ef0
+ ---> ba8a126e8bde
+Step 7/8 : EXPOSE 8080
+ ---> Running in 31bf7fbf8899
+ ---> Removed intermediate container 31bf7fbf8899
+ ---> b4ff37d512e6
+Step 8/8 : CMD ["node", "server.js"]
+ ---> Running in 4a9cc6c03a20
+ ---> Removed intermediate container 4a9cc6c03a20
+ ---> abab19eb5ada
+Successfully built abab19eb5ada
+Successfully tagged reto4-app:v2
+Image: "reto4-app:v2" with ID "sha256:abab19eb5ada9b4dd1ea4f14e2fc7a8790ced4fcde3dc98d51944bc2ef3cc3e2" not yet present on node "reto4-control-plane", loading...
+
+[1;36m==> Aplicando manifiestos[0m
+namespace/reto4 created
+namespace/reto4 unchanged
+deployment.apps/web-v1 created
+deployment.apps/web-v2 created
+service/web created
+service/web-v1 created
+service/web-v2 created
+deployment.apps/client created
+configmap/gateway-nginx created
+deployment.apps/gateway created
+service/gateway created
+Waiting for deployment "web-v1" rollout to finish: 0 of 2 updated replicas are available...
+Waiting for deployment "web-v1" rollout to finish: 1 of 2 updated replicas are available...
+deployment "web-v1" successfully rolled out
+deployment "web-v2" successfully rolled out
+Waiting for deployment "client" rollout to finish: 0 of 1 updated replicas are available...
+deployment "client" successfully rolled out
+deployment "gateway" successfully rolled out
+
+[1;36m==> Verificando que los pods tienen el sidecar de Linkerd[0m
+POD                        CONTENEDORES
+client-5d4dc5766c-nb4sm    curl
+gateway-778975d4fd-hj7rl   nginx
+web-v1-64646568bf-hh7kn    web
+web-v1-64646568bf-wqkmc    web
+web-v2-5bcff59747-gnzbz    web
+kubernetes-api
+--------------
+√ can initialize the client
+√ can query the Kubernetes API
+
+kubernetes-version
+------------------
+√ is running the minimum Kubernetes API version
+
+gateway-api-crd
+---------------
+√ Gateway API CRDs are installed
+
+linkerd-existence
+-----------------
+√ 'linkerd-config' config map exists
+√ heartbeat ServiceAccount exist
+√ control plane replica sets are ready
+√ no unschedulable pods
+√ control plane pods are ready
+√ cluster networks contains all node podCIDRs
+√ cluster networks contains all pods
+√ cluster networks contains all services
+
+linkerd-config
+--------------
+√ control plane Namespace exists
+√ control plane ClusterRoles exist
+√ control plane ClusterRoleBindings exist
+√ control plane ServiceAccounts exist
+√ control plane CustomResourceDefinitions exist
+√ control plane MutatingWebhookConfigurations exist
+√ control plane ValidatingWebhookConfigurations exist
+√ proxy-init container runs as root user if docker container runtime is used
+
+linkerd-identity
+----------------
+√ certificate config is valid
+√ trust anchors are using supported crypto algorithm
+√ trust anchors are within their validity period
+√ trust anchors are valid for at least 60 days
+√ issuer cert is using supported crypto algorithm
+√ issuer cert is within its validity period
+√ issuer cert is valid for at least 60 days
+√ issuer cert is issued by the trust anchor
+
+linkerd-webhooks-and-apisvc-tls
+-------------------------------
+√ proxy-injector webhook has valid cert
+√ proxy-injector cert is valid for at least 60 days
+√ sp-validator webhook has valid cert
+√ sp-validator cert is valid for at least 60 days
+√ policy-validator webhook has valid cert
+√ policy-validator cert is valid for at least 60 days
+
+linkerd-identity-data-plane
+---------------------------
+√ data plane proxies certificate match CA
+
+linkerd-version
+---------------
+√ can determine the latest version
+√ cli is up-to-date
+
+linkerd-control-plane-proxy
+---------------------------
+√ control plane proxies are healthy
+√ control plane proxies are up-to-date
+√ control plane proxies and cli versions match
+
+linkerd-data-plane
+------------------
+√ data plane namespace exists
+√ data plane proxies are ready
+√ data plane is up-to-date
+√ data plane and cli versions match
+√ data plane pod labels are configured correctly
+√ data plane service labels are configured correctly
+√ data plane service annotations are configured correctly
+I1028 15:47:53.151537    7744 warnings.go:107] "Warning: v1 Endpoints is deprecated in v1.33+; use discovery.k8s.io/v1 EndpointSlice"
+√ opaque ports are properly annotated
+
+linkerd-viz
+-----------
+√ linkerd-viz Namespace exists
+√ can initialize the client
+√ linkerd-viz ClusterRoles exist
+√ linkerd-viz ClusterRoleBindings exist
+√ tap API server has valid cert
+√ tap API server cert is valid for at least 60 days
+√ tap API service is running
+√ linkerd-viz pods are injected
+√ viz extension pods are running
+√ viz extension proxies are healthy
+√ viz extension proxies are up-to-date
+√ viz extension proxies and cli versions match
+√ prometheus is installed and configured correctly
+√ viz extension self-check
+
+linkerd-viz-data-plane
+----------------------
+√ data plane namespace exists
+√ prometheus is authorized to scrape data plane pods
+√ data plane proxy metrics are present in Prometheus
+
+Status check results are √

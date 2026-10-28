@@ -1,0 +1,47 @@
+$ curl -i http://localhost:8080/
+HTTP/1.1 200 OK
+content-type: application/json; charset=utf-8
+x-app-version: v1
+
+{
+  "version": "v1",
+  "mensaje": "Version estable",
+  "pod": "web-v1-64646568bf-wqkmc",
+  "path": "/",
+  "cabeceras": {
+    "x-feature-flag": null,
+    "user-agent": "curl/8.16.0"
+  }
+}
+
+$ curl -i -H "X-Feature-Flag: new-version" http://localhost:8080/
+HTTP/1.1 200 OK
+content-type: application/json; charset=utf-8
+x-app-version: v2
+
+{
+  "version": "v2",
+  "mensaje": "Nueva version (feature flag activo)",
+  "pod": "web-v2-5bcff59747-gnzbz",
+  "path": "/",
+  "cabeceras": {
+    "x-feature-flag": "new-version",
+    "user-agent": "curl/8.16.0"
+  }
+}
+
+$ curl -i -A experimental http://localhost:8080/
+HTTP/1.1 200 OK
+content-type: application/json; charset=utf-8
+x-app-version: v2
+
+{
+  "version": "v2",
+  "mensaje": "Nueva version (feature flag activo)",
+  "pod": "web-v2-5bcff59747-gnzbz",
+  "path": "/",
+  "cabeceras": {
+    "x-feature-flag": null,
+    "user-agent": "experimental"
+  }
+}
