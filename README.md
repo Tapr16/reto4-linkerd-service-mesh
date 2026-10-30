@@ -12,6 +12,7 @@ La regla es un `HTTPRoute` de Gateway API: [linkerd/httproute-header.yaml](linke
 ## Documentos
 
 - 📄 [Informe con capturas (PDF)](docs/informe/Informe_Reto4_Linkerd.pdf)
+- 🎞️ [Presentación (PDF)](docs/presentacion/Presentacion-Reto4-Linkerd.pdf) · [PPTX editable](docs/presentacion/Presentacion-Reto4-Linkerd.pptx)
 - 📘 [Guía completa paso a paso](docs/GUIA.md)
 - 📝 [Enunciado del reto](Retos%20Software%20III.pdf) (Reto 4)
 
