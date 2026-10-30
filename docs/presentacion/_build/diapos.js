@@ -110,7 +110,7 @@ Object.keys(CHIP).forEach((l, i) => {
   card(s, 0.6 + i * 1.35, 4.45, 1.2, 0.4, CHIP[l], { name: "chip-tecnologia" });
   text(s, l, { x: 0.6 + i * 1.35, y: 4.45, w: 1.2, h: 0.4, fontSize: 12, bold: true, color: C.background1, align: "center", valign: "middle", margin: 0 });
 });
-text(s, "Principios de Arquitectura de Software · Retos Software III", { x: 0.6, y: 0.5, w: 8.8, h: 0.4, fontSize: 13, color: "AAB4C3", margin: 0 });
+text(s, "Principios y Prácticas de Desarrollo de Software Orientado a Objetos", { x: 0.6, y: 0.5, w: 8.8, h: 0.4, fontSize: 13, color: "AAB4C3", margin: 0 });
 text(s, [
   { text: "David Esteban Suarez Lozano · 2221909", options: { breakLine: true } },
   { text: "Thomas Alejandro Perez Rojas · 2221906", options: { breakLine: true } },
